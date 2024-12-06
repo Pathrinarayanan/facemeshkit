@@ -1,0 +1,42 @@
+[versions]
+agp = "8.6.1"
+kotlin = "1.9.0"
+coreKtx = "1.15.0"
+junit = "4.13.2"
+junitVersion = "1.2.1"
+espressoCore = "3.6.1"
+appcompat = "1.7.0"
+material = "1.12.0"
+activity = "1.9.3"
+constraintlayout = "2.2.0"
+navigationFragmentKtx = "2.8.4"
+navigationUiKtx = "2.8.4"
+mediaPipeVersion = "0.10.14"
+cameraVersion = "1.2.0-alpha02"
+cameraLifecycle = "1.4.0"
+cameraView = "1.4.0"
+couch = "5.6.0"
+camera2 = "1.1.0"
+removebgVersion = "1.0.4"
+[libraries]
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
+androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+androidx-activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
+androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
+androidx-navigation-fragment-ktx = { group = "androidx.navigation", name = "navigation-fragment-ktx", version.ref = "navigationFragmentKtx" }
+androidx-navigation-ui-ktx = { group = "androidx.navigation", name = "navigation-ui-ktx", version.ref = "navigationUiKtx" }
+mediapipe ={group="com.google.mediapipe",name="tasks-vision",version.ref = "mediaPipeVersion"}
+camerax = {group = "androidx.camera",name="camera-core", version.ref = "cameraVersion"}
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "cameraView" }
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camera2" }
+removebg = { group = "com.github.erenalpaslan", name = "removebg", version.ref = "removebgVersion" }
+
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "cameraLifecycle" }
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+undercouch-download ={id = "de.undercouch.download", version.ref = "couch"}
