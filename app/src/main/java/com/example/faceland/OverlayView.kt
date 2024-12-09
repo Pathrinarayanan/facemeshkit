@@ -120,44 +120,78 @@ class OverlayView(context: Context?, attrs: AttributeSet?) :
                         }
 
                         for ((landmarkIndex, landmark) in faceLandmarkerResult.faceLandmarks().withIndex()) {
+                            var startX: Float = 0f
+                            var startY: Float = 0f
+                            var endX: Float = 0f
+                            var endY: Float = 0f
+
                             for ((pointIndex, normalizedLandmark) in landmark.withIndex()) {
                                 when (pointIndex) {
-                                    135 -> {
+                                    355 -> {
+                                        // Get the coordinates for point 360
                                         startX = normalizedLandmark.x() * imageWidth * scaleFactor
                                         startY = normalizedLandmark.y() * imageHeight * scaleFactor
-
-                                        // Draw a dot at point 135
-                                        canvas.drawCircle(startX, startY, 10f, dotPaint) // Radius = 10f
                                     }
-                                    365 -> {
+
+                                    360 -> {
+                                        // Get the coordinates for point 355
                                         endX = normalizedLandmark.x() * imageWidth * scaleFactor
                                         endY = normalizedLandmark.y() * imageHeight * scaleFactor
-
-                                        // Draw a dot at point 365
-                                        canvas.drawCircle(endX, endY, 10f, dotPaint) // Radius = 10f
                                     }
                                 }
                             }
+
+                            // Ensure the points are valid and we have the coordinates for both points
+                            if (startX != 0f && startY != 0f && endX != 0f && endY != 0f) {
+                                // Calculate the distance between points 355 and 360 (for scaling purposes)
+                                val distanceX = Math.abs(endX - startX)
+                                val distanceY = Math.abs(endY - startY)
+
+                                // Set the max and min widths for the image (you can adjust these values)
+                                val maxImageWidth = 300f   // Max width for the image
+                                val minImageWidth = 100f   // Min width for the image
+
+                                // Calculate the proportional width based on the distance (scaling factor)
+                                val overlayWidth = Math.min(Math.max(distanceY, minImageWidth), maxImageWidth)
+
+                                // Maintain the aspect ratio based on the width of the drawable image
+                                val overlayHeight = drawableImage.height * (overlayWidth / drawableImage.width)
+
+                                // Apply a scaling factor of 10 based on the difference in width and height
+                                val scaleFactor = 2f
+                                val scaledOverlayWidth = overlayWidth * scaleFactor
+                                val scaledOverlayHeight = overlayHeight * scaleFactor
+
+                                // Scale the bitmap to the desired size (keeping the aspect ratio)
+                                val scaledBitmap = Bitmap.createScaledBitmap(
+                                    drawableImage,
+                                    scaledOverlayWidth.toInt(),
+                                    scaledOverlayHeight.toInt(),
+                                    true
+                                )
+
+                                // Calculate the center position between points 355 and 360
+                                val centerX = (startX + endX) / 2
+                                val centerY = (startY + endY) / 2
+
+                                // Adjust the bitmap placement by offsetting it so it's centered at the midpoint
+                                canvas.drawBitmap(
+                                    scaledBitmap,
+                                    centerX - (scaledOverlayWidth / 2),
+                                    centerY - (scaledOverlayHeight / 2),
+                                    null
+                                )
+                            } else {
+                                Log.e("OverlayImage", "Invalid coordinates for points 355 or 360!")
+                            }
                         }
 
-                        // Calculate the width of the overlay
-                        val overlayWidth = (endX - startX) *2
 
-                        // Calculate the proportional height to maintain the image aspect ratio
-                        val overlayHeight = drawableImage.height * (overlayWidth / drawableImage.width)
-
-                        // Scale the bitmap to fit exactly between the two dots
-                        val scaledBitmap = Bitmap.createScaledBitmap(drawableImage, overlayWidth.toInt(), overlayHeight.toInt(), true)
-
-                        // Draw the scaled bitmap starting at point 135 and ending at point 365
-                        canvas.drawBitmap(scaledBitmap, startX-200, startY   + overlayHeight /4, null)
-                    } else {
-                        Log.e("OverlayImage", "Drawable resource not found or Bitmap is null!")
                     }
-
                 }
             }
-            //val drawableImage = BitmapFactory.decodeResource(context.resources, R.drawable.necklace)
+
+                        //val drawableImage = BitmapFactory.decodeResource(context.resources, R.drawable.necklace)
 
 
 
