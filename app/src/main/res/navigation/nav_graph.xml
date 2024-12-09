@@ -34,7 +34,7 @@
 
     <fragment
         android:id="@+id/camera_fragment"
-        android:name="com.google.mediapipe.examples.facelandmarker.fragment.CameraFragment"
+        android:name="com.google.mediapipe.examples.handlandmarker.fragment.CameraFragment"
         android:label="CameraFragment">
 
         <action
@@ -44,8 +44,8 @@
             app:popUpToInclusive="true" />
     </fragment>
 
-    <fragment
-        android:id="@+id/gallery_fragment"
-        android:name="com.google.mediapipe.examples.facelandmarker.fragment.GalleryFragment"
-        android:label="GalleryFragment" />
+<!--    <fragment-->
+<!--        android:id="@+id/gallery_fragment"-->
+<!--        android:name="com.google.mediapipe.examples.facelandmarker.fragment.GalleryFragment"-->
+<!--        android:label="GalleryFragment" />-->
 </navigation>

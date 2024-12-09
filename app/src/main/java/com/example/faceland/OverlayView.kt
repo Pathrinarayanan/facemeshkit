@@ -1,7 +1,5 @@
-package com.google.mediapipe.examples.facelandmarker
-
 /*
- * Copyright 2023 The TensorFlow Authors. All Rights Reserved.
+ * Copyright 2022 The TensorFlow Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +13,8 @@ package com.google.mediapipe.examples.facelandmarker
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.google.mediapipe.examples.handlandmarker
+
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -27,24 +27,21 @@ import android.view.View
 import androidx.core.content.ContextCompat
 import com.example.faceland.R
 import com.google.mediapipe.tasks.vision.core.RunningMode
-import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker
-import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarkerResult
-import dev.eren.removebg.RemoveBg
-import java.io.File
+import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarker
+import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult
 import kotlin.math.max
 import kotlin.math.min
 
 class OverlayView(context: Context?, attrs: AttributeSet?) :
     View(context, attrs) {
 
-    private var results: FaceLandmarkerResult? = null
+    private var results: HandLandmarkerResult? = null
     private var linePaint = Paint()
     private var pointPaint = Paint()
 
     private var scaleFactor: Float = 1f
     private var imageWidth: Int = 1
     private var imageHeight: Int = 1
-
 
     init {
         initPaints()
@@ -71,150 +68,91 @@ class OverlayView(context: Context?, attrs: AttributeSet?) :
 
     override fun draw(canvas: Canvas) {
         super.draw(canvas)
-        if(results == null || results!!.faceLandmarks().isEmpty()) {
-            clear()
-            return
-        }
-        val textPaint = Paint().apply {
-            color = Color.RED
-            textSize = 30f
-            style = Paint.Style.FILL
-        }
+        results?.let { handLandmarkerResult ->
+            for ((index, landmark) in handLandmarkerResult.landmarks().withIndex()) {
+                var pointX = 0f
+                var pointY = 0f
+                var pointX1 = 0f
+                var pointY1 = 0f
 
-        results?.let { faceLandmarkerResult ->
+                // Loop through landmarks to get the 13th and 14th points
+                for ((pointIndex, normalizedLandmark) in landmark.withIndex()) {
+                    if (pointIndex == 13) {
+                        // Calculate the position for the 13th point (usually wrist or base of the hand)
+                        pointX = normalizedLandmark.x() * imageWidth * scaleFactor
+                        pointY = normalizedLandmark.y() * imageHeight * scaleFactor
+                    }
+
+                    if (pointIndex == 14) { // Focus on the 14th point (usually near the thumb or the other part of the hand)
+                        pointX1 = normalizedLandmark.x() * imageWidth * scaleFactor
+                        pointY1 = normalizedLandmark.y() * imageHeight * scaleFactor
+                    }
+                }
+
+                // Calculate the distance between the two points (13 and 14)
+                val distance = Math.sqrt(
+                  Math.pow((pointY1 - pointY).toDouble(), 2.0)
+                ).toFloat()
+
+                // Load the image from resources
+                val imageBitmap =
+                    BitmapFactory.decodeResource(resources, R.drawable.ring_without_bg)
+
+                // Check if the imageBitmap is loaded correctly
+                if (imageBitmap != null) {
+                    // Define a base scale factor for the image
+                    val baseScaleFactor =
+                        1f // You can tweak this value for your desired image size
+
+                    // Scale the image based on the distance
+                    val scaledWidth = (imageBitmap.width * (distance /  1200f)).toInt()
+                    val scaledHeight = (imageBitmap.height * (distance / 1200f)).toInt()
+
+                    // Create the scaled bitmap
+                    val scaledBitmap =
+                        Bitmap.createScaledBitmap(imageBitmap, scaledWidth, scaledHeight, true)
+
+                    // Center the image on the 13th point (pointX, pointY)
+                    val imageLeft = pointX - (scaledWidth / 2f)  // Horizontal center
+                    val imageTop = pointY1 - (scaledHeight / 2f) // Vertical center
+
+                    // Draw the scaled image centered at the point
+                    canvas.drawBitmap(scaledBitmap, imageLeft, imageTop+80f, null)
+                } else {
+                    Log.e("ImageError", "Failed to load image from resources.")
+                }
+
+            }
 
 
-//            for ((landmarkIndex, landmark) in faceLandmarkerResult.faceLandmarks().withIndex()) {
-//                for ((pointIndex, normalizedLandmark) in landmark.withIndex()) {
-//                    val x = normalizedLandmark.x() * imageWidth * scaleFactor
-//                    val y = normalizedLandmark.y() * imageHeight * scaleFactor
-//                    canvas.drawPoint(x, y, pointPaint)
-//
-//                    // Draw the index next to the point
-//                    canvas.drawText(
-//                        "$pointIndex",
-//                        x + 10, // Slight offset to avoid overlap
-//                        y + 10,
-//                        textPaint
+
+
+//                HandLandmarker.HAND_CONNECTIONS.forEach {
+//                    canvas.drawLine(
+//                        landmark.get(it!!.start())
+//                            .x() * imageWidth * scaleFactor,
+//                        landmark.get(it.start())
+//                            .y() * imageHeight * scaleFactor,
+//                        landmark.get(it.end())
+//                            .x() * imageWidth * scaleFactor,
+//                        landmark.get(it.end())
+//                            .y() * imageHeight * scaleFactor,
+//                        linePaint
 //                    )
 //                }
-//            }
-            val globalImagePath = MainViewModel.GlobalImagePath.filePath
-            if (globalImagePath != null) {
-                val file = File(globalImagePath)
-                if (file.exists()) {
-                    val drawableImage = BitmapFactory.decodeFile(globalImagePath)
-                    // Use the bitmap
-                    if (drawableImage != null) {
-                        var startX = 0f
-                        var startY = 0f
-                        var endX = 0f
-                        var endY = 0f
-
-                        // Define a Paint object for dots
-                        val dotPaint = Paint().apply {
-                            color = Color.RED // Set your desired color
-                            style = Paint.Style.FILL
-                            isAntiAlias = true
-                            strokeWidth = 8f // Thickness of the dots
-                        }
-
-                        for ((landmarkIndex, landmark) in faceLandmarkerResult.faceLandmarks().withIndex()) {
-                            var startX: Float = 0f
-                            var startY: Float = 0f
-                            var endX: Float = 0f
-                            var endY: Float = 0f
-
-                            for ((pointIndex, normalizedLandmark) in landmark.withIndex()) {
-                                when (pointIndex) {
-                                    355 -> {
-                                        // Get the coordinates for point 360
-                                        startX = normalizedLandmark.x() * imageWidth * scaleFactor
-                                        startY = normalizedLandmark.y() * imageHeight * scaleFactor
-                                    }
-
-                                    360 -> {
-                                        // Get the coordinates for point 355
-                                        endX = normalizedLandmark.x() * imageWidth * scaleFactor
-                                        endY = normalizedLandmark.y() * imageHeight * scaleFactor
-                                    }
-                                }
-                            }
-
-                            // Ensure the points are valid and we have the coordinates for both points
-                            if (startX != 0f && startY != 0f && endX != 0f && endY != 0f) {
-                                // Calculate the distance between points 355 and 360 (for scaling purposes)
-                                val distanceX = Math.abs(endX - startX)
-                                val distanceY = Math.abs(endY - startY)
-
-                                // Set the max and min widths for the image (you can adjust these values)
-                                val maxImageWidth = 300f   // Max width for the image
-                                val minImageWidth = 100f   // Min width for the image
-
-                                // Calculate the proportional width based on the distance (scaling factor)
-                                val overlayWidth = Math.min(Math.max(distanceY, minImageWidth), maxImageWidth)
-
-                                // Maintain the aspect ratio based on the width of the drawable image
-                                val overlayHeight = drawableImage.height * (overlayWidth / drawableImage.width)
-
-                                // Apply a scaling factor of 10 based on the difference in width and height
-                                val scaleFactor = 2f
-                                val scaledOverlayWidth = overlayWidth * scaleFactor
-                                val scaledOverlayHeight = overlayHeight * scaleFactor
-
-                                // Scale the bitmap to the desired size (keeping the aspect ratio)
-                                val scaledBitmap = Bitmap.createScaledBitmap(
-                                    drawableImage,
-                                    scaledOverlayWidth.toInt(),
-                                    scaledOverlayHeight.toInt(),
-                                    true
-                                )
-
-                                // Calculate the center position between points 355 and 360
-                                val centerX = (startX + endX) / 2
-                                val centerY = (startY + endY) / 2
-
-                                // Adjust the bitmap placement by offsetting it so it's centered at the midpoint
-                                canvas.drawBitmap(
-                                    scaledBitmap,
-                                    centerX - (scaledOverlayWidth / 2),
-                                    centerY - (scaledOverlayHeight / 2),
-                                    null
-                                )
-                            } else {
-                                Log.e("OverlayImage", "Invalid coordinates for points 355 or 360!")
-                            }
-                        }
-
-
-                    }
                 }
             }
 
-                        //val drawableImage = BitmapFactory.decodeResource(context.resources, R.drawable.necklace)
 
 
-
-
-
-            FaceLandmarker.FACE_LANDMARKS_CONNECTORS.forEach {
-                canvas.drawLine(
-                    faceLandmarkerResult.faceLandmarks().get(0).get(it!!.start()).x() * imageWidth * scaleFactor,
-                    faceLandmarkerResult.faceLandmarks().get(0).get(it.start()).y() * imageHeight * scaleFactor,
-                    faceLandmarkerResult.faceLandmarks().get(0).get(it.end()).x() * imageWidth * scaleFactor,
-                    faceLandmarkerResult.faceLandmarks().get(0).get(it.end()).y() * imageHeight * scaleFactor,
-                    linePaint)
-            }
-        }
-    }
 
     fun setResults(
-        faceLandmarkerResults: FaceLandmarkerResult,
+        handLandmarkerResults: HandLandmarkerResult,
         imageHeight: Int,
         imageWidth: Int,
         runningMode: RunningMode = RunningMode.IMAGE
     ) {
-        results = faceLandmarkerResults
+        results = handLandmarkerResults
 
         this.imageHeight = imageHeight
         this.imageWidth = imageWidth
@@ -235,7 +173,6 @@ class OverlayView(context: Context?, attrs: AttributeSet?) :
     }
 
     companion object {
-        private const val LANDMARK_STROKE_WIDTH = 8F
-        private const val TAG = "Face Landmarker Overlay"
+        private const val LANDMARK_STROKE_WIDTH = 50F
     }
 }

@@ -8,8 +8,7 @@ import androidx.lifecycle.Observer
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.example.faceland.databinding.ActivityMainBinding
-import com.google.mediapipe.examples.facelandmarker.MainViewModel
-import com.google.mediapipe.examples.facelandmarker.OverlayView
+import com.google.mediapipe.examples.handlandmarker.MainViewModel
 import dev.eren.removebg.RemoveBg
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,9 +33,9 @@ class MainActivity : AppCompatActivity() {
         activityMainBinding.navigation.setOnNavigationItemReselectedListener {
             // ignore the reselection
         }
-        val job = CoroutineScope(Dispatchers.Main).launch {
-            viewModel.removeBackgroundAndSave(application, "https://cdn.caratlane.com/media/catalog/product/cache/6/image/480x480/9df78eab33525d08d6e5fb8d27136e95/J/N/JN00267-1YP900_11_listfront.jpg")
-        }
+//        val job = CoroutineScope(Dispatchers.Main).launch {
+//            viewModel.removeBackgroundAndSave(application, "https://cdn.caratlane.com/media/catalog/product/cache/6/image/480x480/9df78eab33525d08d6e5fb8d27136e95/J/N/JN00267-1YP900_11_listfront.jpg")
+//        }
         scaleDetector = ScaleGestureDetector(applicationContext, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
             override fun onScale(detector: ScaleGestureDetector): Boolean {
                 scaleFactor *= detector.scaleFactor // Adjust scale factor based on pinch gesture
@@ -45,12 +44,12 @@ class MainActivity : AppCompatActivity() {
                 return true
             }
         })
-        viewModel.outputImage.observe(this, Observer { bitmap ->
-            // Check if bitmap is not null and set it to the ImageView
-            bitmap?.let {
-
-            }
-        })
+//        viewModel.outputImage.observe(this, Observer { bitmap ->
+//            // Check if bitmap is not null and set it to the ImageView
+//            bitmap?.let {
+//
+//            }
+//        })
 
     }
 

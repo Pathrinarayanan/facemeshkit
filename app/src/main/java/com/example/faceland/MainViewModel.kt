@@ -1,6 +1,5 @@
-package com.google.mediapipe.examples.facelandmarker
 /*
- * Copyright 2023 The TensorFlow Authors. All Rights Reserved.
+ * Copyright 2022 The TensorFlow Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,137 +14,51 @@ package com.google.mediapipe.examples.facelandmarker
  * limitations under the License.
  */
 
-import android.app.Application
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.os.Environment
-import android.util.Log
-import android.widget.Toast
-import androidx.lifecycle.MutableLiveData
+package com.google.mediapipe.examples.handlandmarker
+
 import androidx.lifecycle.ViewModel
-import dev.eren.removebg.RemoveBg
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.FileOutputStream
-import java.net.HttpURLConnection
-import java.net.URL
 
 /**
- *  This ViewModel is used to store face landmarker helper settings
+ *  This ViewModel is used to store hand landmarker helper settings
  */
 class MainViewModel : ViewModel() {
 
-    private var _delegate: Int = FaceLandmarkerHelper.DELEGATE_CPU
-    private var _minFaceDetectionConfidence: Float =
-        FaceLandmarkerHelper.DEFAULT_FACE_DETECTION_CONFIDENCE
-    private var _minFaceTrackingConfidence: Float = FaceLandmarkerHelper
-        .DEFAULT_FACE_TRACKING_CONFIDENCE
-    private var _minFacePresenceConfidence: Float = FaceLandmarkerHelper
-        .DEFAULT_FACE_PRESENCE_CONFIDENCE
-    private var _maxFaces: Int = FaceLandmarkerHelper.DEFAULT_NUM_FACES
-    val outputImage = MutableLiveData<Bitmap?>()
+    private var _delegate: Int = HandLandmarkerHelper.DELEGATE_CPU
+    private var _minHandDetectionConfidence: Float =
+        HandLandmarkerHelper.DEFAULT_HAND_DETECTION_CONFIDENCE
+    private var _minHandTrackingConfidence: Float = HandLandmarkerHelper
+        .DEFAULT_HAND_TRACKING_CONFIDENCE
+    private var _minHandPresenceConfidence: Float = HandLandmarkerHelper
+        .DEFAULT_HAND_PRESENCE_CONFIDENCE
+    private var _maxHands: Int = HandLandmarkerHelper.DEFAULT_NUM_HANDS
 
-    // Method to remove background from an image resource
-    suspend fun removeBackgroundAndSave(context: Application, imageUrl: String) {
-        withContext(Dispatchers.IO) {
-            // Download the image from the URL
-            val originalBitmap = downloadImageFromUrl(imageUrl)
-
-            if (originalBitmap != null) {
-                // Use RemoveBg API to remove the background
-                val remover = RemoveBg(context)
-                val backgroundRemovedBitmap = remover.clearBackground(originalBitmap)
-
-                // Collect the result synchronously
-                backgroundRemovedBitmap.collect { processedBitmap ->
-                    processedBitmap?.let {
-                        val savedFile = saveBitmapToStorage(context, it)
-                        // Post the result to the LiveData
-                        withContext(Dispatchers.Main) {
-                            outputImage.postValue(it)
-                        }
-                        Log.d("RemoveBg", "Saved file path: ${savedFile?.absolutePath}")
-                    }
-                }
-            } else {
-                Log.e("RemoveBg", "Failed to download image from URL.")
-            }
-        }
-    }
-
-    private fun downloadImageFromUrl(url: String): Bitmap? {
-        return try {
-            val connection = URL(url).openConnection() as HttpURLConnection
-            connection.doInput = true
-            connection.connect()
-            val inputStream = connection.inputStream
-            BitmapFactory.decodeStream(inputStream)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
-    }
-
-
-    // Convert drawable resource to Bitmap
-    private fun getBitmapFromDrawable(context: Application, drawableResId: Int): Bitmap {
-        return BitmapFactory.decodeResource(context.resources, drawableResId)
-    }
-
-    // Save the bitmap to internal storage
-    private fun saveBitmapToStorage(context: Application, bitmap: Bitmap): File {
-        val filename = "processed_image.png"
-        val file = File(context.filesDir, filename)
-
-
-        // Share the file path globally
-
-        try {
-            val outputStream = FileOutputStream(file)
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
-            outputStream.close()
-            Log.d("ImageSaved", "Saved at: ${file.absolutePath}")
-            GlobalImagePath.filePath = file.absolutePath
-
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Log.d("pathri","not + "+ e.toString())
-
-        }
-        return file
-    }
     val currentDelegate: Int get() = _delegate
-    val currentMinFaceDetectionConfidence: Float
+    val currentMinHandDetectionConfidence: Float
         get() =
-            _minFaceDetectionConfidence
-    val currentMinFaceTrackingConfidence: Float
+            _minHandDetectionConfidence
+    val currentMinHandTrackingConfidence: Float
         get() =
-            _minFaceTrackingConfidence
-    val currentMinFacePresenceConfidence: Float
+            _minHandTrackingConfidence
+    val currentMinHandPresenceConfidence: Float
         get() =
-            _minFacePresenceConfidence
-    val currentMaxFaces: Int get() = _maxFaces
+            _minHandPresenceConfidence
+    val currentMaxHands: Int get() = _maxHands
 
     fun setDelegate(delegate: Int) {
         _delegate = delegate
     }
 
-    fun setMinFaceDetectionConfidence(confidence: Float) {
-        _minFaceDetectionConfidence = confidence
+    fun setMinHandDetectionConfidence(confidence: Float) {
+        _minHandDetectionConfidence = confidence
     }
-    fun setMinFaceTrackingConfidence(confidence: Float) {
-        _minFaceTrackingConfidence = confidence
+    fun setMinHandTrackingConfidence(confidence: Float) {
+        _minHandTrackingConfidence = confidence
     }
-    fun setMinFacePresenceConfidence(confidence: Float) {
-        _minFacePresenceConfidence = confidence
-    }
-
-    fun setMaxFaces(maxResults: Int) {
-        _maxFaces = maxResults
-    }
-    object GlobalImagePath {
-        var filePath: String? = null
+    fun setMinHandPresenceConfidence(confidence: Float) {
+        _minHandPresenceConfidence = confidence
     }
 
+    fun setMaxHands(maxResults: Int) {
+        _maxHands = maxResults
+    }
 }

@@ -1,11 +1,22 @@
-
-package com.google.mediapipe.examples.facelandmarker.fragment
+/*
+ * Copyright 2022 The TensorFlow Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *             http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.google.mediapipe.examples.handlandmarker.fragment
 
 import android.annotation.SuppressLint
 import android.content.res.Configuration
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -24,29 +35,21 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.Navigation
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.viewpager2.widget.ViewPager2.SCROLL_STATE_DRAGGING
-import androidx.viewpager2.widget.ViewPager2.SCROLL_STATE_IDLE
-import androidx.viewpager2.widget.ViewPager2.SCROLL_STATE_SETTLING
-import androidx.viewpager2.widget.ViewPager2.ScrollState
 import com.example.faceland.R
 import com.example.faceland.databinding.FragmentCameraBinding
-import com.google.mediapipe.examples.facelandmarker.FaceLandmarkerHelper
-import com.google.mediapipe.examples.facelandmarker.MainViewModel
-import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
+import com.google.mediapipe.examples.facelandmarker.fragment.PermissionsFragment
+import com.google.mediapipe.examples.handlandmarker.HandLandmarkerHelper
+import com.google.mediapipe.examples.handlandmarker.MainViewModel
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import java.util.Locale
-import java.util.Optional
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import kotlin.jvm.optionals.toList
-import kotlin.math.roundToInt
 
-class CameraFragment : Fragment(), FaceLandmarkerHelper.LandmarkerListener {
+class CameraFragment : Fragment(), HandLandmarkerHelper.LandmarkerListener {
 
     companion object {
-        private const val TAG = "Face Landmarker"
+        private const val TAG = "Hand Landmarker"
     }
 
     private var _fragmentCameraBinding: FragmentCameraBinding? = null
@@ -54,17 +57,13 @@ class CameraFragment : Fragment(), FaceLandmarkerHelper.LandmarkerListener {
     private val fragmentCameraBinding
         get() = _fragmentCameraBinding!!
 
-    private lateinit var faceLandmarkerHelper: FaceLandmarkerHelper
+    private lateinit var handLandmarkerHelper: HandLandmarkerHelper
     private val viewModel: MainViewModel by activityViewModels()
-    private val faceBlendshapesResultAdapter by lazy {
-        FaceBlendshapesResultAdapter()
-    }
-
     private var preview: Preview? = null
     private var imageAnalyzer: ImageAnalysis? = null
     private var camera: Camera? = null
     private var cameraProvider: ProcessCameraProvider? = null
-    private var cameraFacing = CameraSelector.LENS_FACING_FRONT
+    private var cameraFacing = CameraSelector.LENS_FACING_BACK
 
     /** Blocking ML operations are performed using this executor */
     private lateinit var backgroundExecutor: ExecutorService
@@ -79,26 +78,26 @@ class CameraFragment : Fragment(), FaceLandmarkerHelper.LandmarkerListener {
             ).navigate(R.id.action_camera_to_permissions)
         }
 
-        // Start the FaceLandmarkerHelper again when users come back
+        // Start the HandLandmarkerHelper again when users come back
         // to the foreground.
         backgroundExecutor.execute {
-            if (faceLandmarkerHelper.isClose()) {
-                faceLandmarkerHelper.setupFaceLandmarker()
+            if (handLandmarkerHelper.isClose()) {
+                handLandmarkerHelper.setupHandLandmarker()
             }
         }
     }
 
     override fun onPause() {
         super.onPause()
-        if(this::faceLandmarkerHelper.isInitialized) {
-            viewModel.setMaxFaces(faceLandmarkerHelper.maxNumFaces)
-            viewModel.setMinFaceDetectionConfidence(faceLandmarkerHelper.minFaceDetectionConfidence)
-            viewModel.setMinFaceTrackingConfidence(faceLandmarkerHelper.minFaceTrackingConfidence)
-            viewModel.setMinFacePresenceConfidence(faceLandmarkerHelper.minFacePresenceConfidence)
-            viewModel.setDelegate(faceLandmarkerHelper.currentDelegate)
+        if(this::handLandmarkerHelper.isInitialized) {
+            viewModel.setMaxHands(handLandmarkerHelper.maxNumHands)
+            viewModel.setMinHandDetectionConfidence(handLandmarkerHelper.minHandDetectionConfidence)
+            viewModel.setMinHandTrackingConfidence(handLandmarkerHelper.minHandTrackingConfidence)
+            viewModel.setMinHandPresenceConfidence(handLandmarkerHelper.minHandPresenceConfidence)
+            viewModel.setDelegate(handLandmarkerHelper.currentDelegate)
 
-            // Close the FaceLandmarkerHelper and release resources
-            backgroundExecutor.execute { faceLandmarkerHelper.clearFaceLandmarker() }
+            // Close the HandLandmarkerHelper and release resources
+            backgroundExecutor.execute { handLandmarkerHelper.clearHandLandmarker() }
         }
     }
 
@@ -128,11 +127,6 @@ class CameraFragment : Fragment(), FaceLandmarkerHelper.LandmarkerListener {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        with(fragmentCameraBinding.recyclerviewResults) {
-            layoutManager = LinearLayoutManager(requireContext())
-            adapter = faceBlendshapesResultAdapter
-        }
-
         // Initialize our background executor
         backgroundExecutor = Executors.newSingleThreadExecutor()
 
@@ -142,17 +136,17 @@ class CameraFragment : Fragment(), FaceLandmarkerHelper.LandmarkerListener {
             setUpCamera()
         }
 
-        // Create the FaceLandmarkerHelper that will handle the inference
+        // Create the HandLandmarkerHelper that will handle the inference
         backgroundExecutor.execute {
-            faceLandmarkerHelper = FaceLandmarkerHelper(
+            handLandmarkerHelper = HandLandmarkerHelper(
                 context = requireContext(),
                 runningMode = RunningMode.LIVE_STREAM,
-                minFaceDetectionConfidence = viewModel.currentMinFaceDetectionConfidence,
-                minFaceTrackingConfidence = viewModel.currentMinFaceTrackingConfidence,
-                minFacePresenceConfidence = viewModel.currentMinFacePresenceConfidence,
-                maxNumFaces = viewModel.currentMaxFaces,
+                minHandDetectionConfidence = viewModel.currentMinHandDetectionConfidence,
+                minHandTrackingConfidence = viewModel.currentMinHandTrackingConfidence,
+                minHandPresenceConfidence = viewModel.currentMinHandPresenceConfidence,
+                maxNumHands = viewModel.currentMaxHands,
                 currentDelegate = viewModel.currentDelegate,
-                faceLandmarkerHelperListener = this
+                handLandmarkerHelperListener = this
             )
         }
 
@@ -162,86 +156,86 @@ class CameraFragment : Fragment(), FaceLandmarkerHelper.LandmarkerListener {
 
     private fun initBottomSheetControls() {
         // init bottom sheet settings
-        fragmentCameraBinding.bottomSheetLayout.maxFacesValue.text =
-            viewModel.currentMaxFaces.toString()
+//        fragmentCameraBinding.bottomSheetLayout.maxHandsValue.text =
+//            viewModel.currentMaxHands.toString()
         fragmentCameraBinding.bottomSheetLayout.detectionThresholdValue.text =
             String.format(
-                Locale.US, "%.2f", viewModel.currentMinFaceDetectionConfidence
+                Locale.US, "%.2f", viewModel.currentMinHandDetectionConfidence
             )
         fragmentCameraBinding.bottomSheetLayout.trackingThresholdValue.text =
             String.format(
-                Locale.US, "%.2f", viewModel.currentMinFaceTrackingConfidence
+                Locale.US, "%.2f", viewModel.currentMinHandTrackingConfidence
             )
         fragmentCameraBinding.bottomSheetLayout.presenceThresholdValue.text =
             String.format(
-                Locale.US, "%.2f", viewModel.currentMinFacePresenceConfidence
+                Locale.US, "%.2f", viewModel.currentMinHandPresenceConfidence
             )
 
-        // When clicked, lower face detection score threshold floor
+        // When clicked, lower hand detection score threshold floor
         fragmentCameraBinding.bottomSheetLayout.detectionThresholdMinus.setOnClickListener {
-            if (faceLandmarkerHelper.minFaceDetectionConfidence >= 0.2) {
-                faceLandmarkerHelper.minFaceDetectionConfidence -= 0.1f
+            if (handLandmarkerHelper.minHandDetectionConfidence >= 0.2) {
+                handLandmarkerHelper.minHandDetectionConfidence -= 0.1f
                 updateControlsUi()
             }
         }
 
-        // When clicked, raise face detection score threshold floor
+        // When clicked, raise hand detection score threshold floor
         fragmentCameraBinding.bottomSheetLayout.detectionThresholdPlus.setOnClickListener {
-            if (faceLandmarkerHelper.minFaceDetectionConfidence <= 0.8) {
-                faceLandmarkerHelper.minFaceDetectionConfidence += 0.1f
+            if (handLandmarkerHelper.minHandDetectionConfidence <= 0.8) {
+                handLandmarkerHelper.minHandDetectionConfidence += 0.1f
                 updateControlsUi()
             }
         }
 
-        // When clicked, lower face tracking score threshold floor
+        // When clicked, lower hand tracking score threshold floor
         fragmentCameraBinding.bottomSheetLayout.trackingThresholdMinus.setOnClickListener {
-            if (faceLandmarkerHelper.minFaceTrackingConfidence >= 0.2) {
-                faceLandmarkerHelper.minFaceTrackingConfidence -= 0.1f
+            if (handLandmarkerHelper.minHandTrackingConfidence >= 0.2) {
+                handLandmarkerHelper.minHandTrackingConfidence -= 0.1f
                 updateControlsUi()
             }
         }
 
-        // When clicked, raise face tracking score threshold floor
+        // When clicked, raise hand tracking score threshold floor
         fragmentCameraBinding.bottomSheetLayout.trackingThresholdPlus.setOnClickListener {
-            if (faceLandmarkerHelper.minFaceTrackingConfidence <= 0.8) {
-                faceLandmarkerHelper.minFaceTrackingConfidence += 0.1f
+            if (handLandmarkerHelper.minHandTrackingConfidence <= 0.8) {
+                handLandmarkerHelper.minHandTrackingConfidence += 0.1f
                 updateControlsUi()
             }
         }
 
-        // When clicked, lower face presence score threshold floor
+        // When clicked, lower hand presence score threshold floor
         fragmentCameraBinding.bottomSheetLayout.presenceThresholdMinus.setOnClickListener {
-            if (faceLandmarkerHelper.minFacePresenceConfidence >= 0.2) {
-                faceLandmarkerHelper.minFacePresenceConfidence -= 0.1f
+            if (handLandmarkerHelper.minHandPresenceConfidence >= 0.2) {
+                handLandmarkerHelper.minHandPresenceConfidence -= 0.1f
                 updateControlsUi()
             }
         }
 
-        // When clicked, raise face presence score threshold floor
+        // When clicked, raise hand presence score threshold floor
         fragmentCameraBinding.bottomSheetLayout.presenceThresholdPlus.setOnClickListener {
-            if (faceLandmarkerHelper.minFacePresenceConfidence <= 0.8) {
-                faceLandmarkerHelper.minFacePresenceConfidence += 0.1f
+            if (handLandmarkerHelper.minHandPresenceConfidence <= 0.8) {
+                handLandmarkerHelper.minHandPresenceConfidence += 0.1f
                 updateControlsUi()
             }
         }
 
-        // When clicked, reduce the number of faces that can be detected at a
+        // When clicked, reduce the number of hands that can be detected at a
         // time
-        fragmentCameraBinding.bottomSheetLayout.maxFacesMinus.setOnClickListener {
-            if (faceLandmarkerHelper.maxNumFaces > 1) {
-                faceLandmarkerHelper.maxNumFaces--
-                updateControlsUi()
-            }
-        }
-
-        // When clicked, increase the number of faces that can be detected
-        // at a time
-        fragmentCameraBinding.bottomSheetLayout.maxFacesPlus.setOnClickListener {
-            if (faceLandmarkerHelper.maxNumFaces < 2) {
-                faceLandmarkerHelper.maxNumFaces++
-                updateControlsUi()
-            }
-        }
+//        fragmentCameraBinding.bottomSheetLayout.maxHandsMinus.setOnClickListener {
+//            if (handLandmarkerHelper.maxNumHands > 1) {
+//                handLandmarkerHelper.maxNumHands--
+//                updateControlsUi()
+//            }
+//        }
+//
+//        // When clicked, increase the number of hands that can be detected
+//        // at a time
+//        fragmentCameraBinding.bottomSheetLayout.maxHandsPlus.setOnClickListener {
+//            if (handLandmarkerHelper.maxNumHands < 2) {
+//                handLandmarkerHelper.maxNumHands++
+//                updateControlsUi()
+//            }
+//        }
 
         // When clicked, change the underlying hardware used for inference.
         // Current options are CPU and GPU
@@ -254,10 +248,10 @@ class CameraFragment : Fragment(), FaceLandmarkerHelper.LandmarkerListener {
                     p0: AdapterView<*>?, p1: View?, p2: Int, p3: Long
                 ) {
                     try {
-                        faceLandmarkerHelper.currentDelegate = p2
+                        handLandmarkerHelper.currentDelegate = p2
                         updateControlsUi()
                     } catch(e: UninitializedPropertyAccessException) {
-                        Log.e(TAG, "FaceLandmarkerHelper has not been initialized yet.")
+                        Log.e(TAG, "HandLandmarkerHelper has not been initialized yet.")
                     }
                 }
 
@@ -267,35 +261,35 @@ class CameraFragment : Fragment(), FaceLandmarkerHelper.LandmarkerListener {
             }
     }
 
-    // Update the values displayed in the bottom sheet. Reset Facelandmarker
+    // Update the values displayed in the bottom sheet. Reset Handlandmarker
     // helper.
     private fun updateControlsUi() {
-        fragmentCameraBinding.bottomSheetLayout.maxFacesValue.text =
-            faceLandmarkerHelper.maxNumFaces.toString()
+//        fragmentCameraBinding.bottomSheetLayout.maxHandsValue.text =
+//            handLandmarkerHelper.maxNumHands.toString()
         fragmentCameraBinding.bottomSheetLayout.detectionThresholdValue.text =
             String.format(
                 Locale.US,
                 "%.2f",
-                faceLandmarkerHelper.minFaceDetectionConfidence
+                handLandmarkerHelper.minHandDetectionConfidence
             )
         fragmentCameraBinding.bottomSheetLayout.trackingThresholdValue.text =
             String.format(
                 Locale.US,
                 "%.2f",
-                faceLandmarkerHelper.minFaceTrackingConfidence
+                handLandmarkerHelper.minHandTrackingConfidence
             )
         fragmentCameraBinding.bottomSheetLayout.presenceThresholdValue.text =
             String.format(
                 Locale.US,
                 "%.2f",
-                faceLandmarkerHelper.minFacePresenceConfidence
+                handLandmarkerHelper.minHandPresenceConfidence
             )
 
         // Needs to be cleared instead of reinitialized because the GPU
         // delegate needs to be initialized on the thread using it when applicable
         backgroundExecutor.execute {
-            faceLandmarkerHelper.clearFaceLandmarker()
-            faceLandmarkerHelper.setupFaceLandmarker()
+            handLandmarkerHelper.clearHandLandmarker()
+            handLandmarkerHelper.setupHandLandmarker()
         }
         fragmentCameraBinding.overlay.clear()
     }
@@ -341,7 +335,7 @@ class CameraFragment : Fragment(), FaceLandmarkerHelper.LandmarkerListener {
                 // The analyzer can then be assigned to the instance
                 .also {
                     it.setAnalyzer(backgroundExecutor) { image ->
-                        detectFace(image)
+                        detectHand(image)
                     }
                 }
 
@@ -362,8 +356,8 @@ class CameraFragment : Fragment(), FaceLandmarkerHelper.LandmarkerListener {
         }
     }
 
-    private fun detectFace(imageProxy: ImageProxy) {
-        faceLandmarkerHelper.detectLiveStream(
+    private fun detectHand(imageProxy: ImageProxy) {
+        handLandmarkerHelper.detectLiveStream(
             imageProxy = imageProxy,
             isFrontCamera = cameraFacing == CameraSelector.LENS_FACING_FRONT
         )
@@ -375,87 +369,37 @@ class CameraFragment : Fragment(), FaceLandmarkerHelper.LandmarkerListener {
             fragmentCameraBinding.viewFinder.display.rotation
     }
 
-    // Update UI after face have been detected. Extracts original
+    // Update UI after hand have been detected. Extracts original
     // image height/width to scale and place the landmarks properly through
     // OverlayView
     override fun onResults(
-        resultBundle: FaceLandmarkerHelper.ResultBundle
+        resultBundle: HandLandmarkerHelper.ResultBundle
     ) {
         activity?.runOnUiThread {
             if (_fragmentCameraBinding != null) {
-                if (fragmentCameraBinding.recyclerviewResults.scrollState != SCROLL_STATE_DRAGGING) {
-                    faceBlendshapesResultAdapter.updateResults(resultBundle.result)
-                    faceBlendshapesResultAdapter.notifyDataSetChanged()
-                }
-
-
                 fragmentCameraBinding.bottomSheetLayout.inferenceTimeVal.text =
                     String.format("%d ms", resultBundle.inferenceTime)
 
-
+                // Pass necessary information to OverlayView for drawing on the canvas
                 fragmentCameraBinding.overlay.setResults(
-                    resultBundle.result,
+                    resultBundle.results.first(),
                     resultBundle.inputImageHeight,
                     resultBundle.inputImageWidth,
                     RunningMode.LIVE_STREAM
                 )
+
                 // Force a redraw
                 fragmentCameraBinding.overlay.invalidate()
-
             }
-        }
-    }
-    fun drawChin(canvas: Canvas, landmarks: List<NormalizedLandmark>) {
-        val paint = Paint().apply {
-            color = Color.RED // Set the color for drawing
-            strokeWidth = 5f // Set the stroke width for the drawing
-            style = Paint.Style.FILL // Draw filled circles for landmarks
-        }
-
-        // Draw on the chin (usually landmarks 1 to 5 or 6 in MediaPipe)
-        for (i in 0..5) { // Landmarks 1 to 5 for the chin, adjust if necessary
-            val landmark = landmarks[i]
-            val x = landmark.x() * canvas.width // Convert normalized x to screen coordinates
-            val y = landmark.y() * canvas.height // Convert normalized y to screen coordinates
-            canvas.drawCircle(x, y, 10f, paint) // Draw a circle at each chin landmark
-        }
-
-        // Optionally, draw lines connecting the landmarks (if you prefer a line instead of circles)
-        for (i in 0 until 5) {
-            val startLandmark = landmarks[i]
-            val endLandmark = landmarks[i + 1]
-
-            val startX = startLandmark.x() * canvas.width
-            val startY = startLandmark.y() * canvas.height
-            val endX = endLandmark.x() * canvas.width
-            val endY = endLandmark.y() * canvas.height
-
-            canvas.drawLine(
-                startX,
-                startY,
-                endX,
-                endY,
-                paint
-            ) // Draw line between consecutive chin landmarks
-        }
-    }
-    override fun onEmpty() {
-        fragmentCameraBinding.overlay.clear()
-        activity?.runOnUiThread {
-            faceBlendshapesResultAdapter.updateResults(null)
-            faceBlendshapesResultAdapter.notifyDataSetChanged()
         }
     }
 
     override fun onError(error: String, errorCode: Int) {
         activity?.runOnUiThread {
             Toast.makeText(requireContext(), error, Toast.LENGTH_SHORT).show()
-            faceBlendshapesResultAdapter.updateResults(null)
-            faceBlendshapesResultAdapter.notifyDataSetChanged()
-
-            if (errorCode == FaceLandmarkerHelper.GPU_ERROR) {
+            if (errorCode == HandLandmarkerHelper.GPU_ERROR) {
                 fragmentCameraBinding.bottomSheetLayout.spinnerDelegate.setSelection(
-                    FaceLandmarkerHelper.DELEGATE_CPU, false
+                    HandLandmarkerHelper.DELEGATE_CPU, false
                 )
             }
         }
